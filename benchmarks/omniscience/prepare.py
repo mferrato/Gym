@@ -32,6 +32,13 @@ BENCHMARK_DIR = Path(__file__).parent
 DATA_DIR = BENCHMARK_DIR / "data"
 OUTPUT_FPATH = DATA_DIR / "omniscience_benchmark.jsonl"
 
+SYSTEM_PROMPT = (
+    "You are answering questions about {domain}, and in particular {topic}. "
+    "You will be given a question, answer with JUST the answer (no explanation). "
+    "If you do not know the answer, or you need more context or tools to answer "
+    "the question, be clear about this - it is better that you say this than get the wrong answer."
+)
+
 
 def prepare() -> Path:
     """Download AA-Omniscience data and convert to Gym JSONL format."""
@@ -44,12 +51,22 @@ def prepare() -> Path:
 
     rows = []
     for entry in ds:
+        domain = entry["domain"]
+        topic = entry["topic"]
+        question = entry["question"]
+
         row = {
             "id": entry["question_id"],
-            "domain": entry["domain"],
-            "topic": entry["topic"],
-            "question": entry["question"],
+            "domain": domain,
+            "topic": topic,
+            "question": question,
             "expected_answer": entry["answer"],
+            "responses_create_params": {
+                "input": [
+                    {"role": "system", "content": SYSTEM_PROMPT.format(domain=domain, topic=topic)},
+                    {"role": "user", "content": question},
+                ]
+            },
         }
         rows.append(json.dumps(row, ensure_ascii=False) + "\n")
 
