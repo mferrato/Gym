@@ -1,7 +1,6 @@
 # Judge model: google/gemma-4-31b-it via NVIDIA API
 # Overrides the default genrm_model (local vLLM) with an OpenAI-compatible
 # hosted endpoint. Requires NVIDIA_API_KEY in the environment.
-# Sets use_chat_completions_for_judge since NVIDIA API only supports /v1/chat/completions.
 genrm_model:
   responses_api_models:
     openai_model:
@@ -9,9 +8,3 @@ genrm_model:
       openai_base_url: https://integrate.api.nvidia.com/v1
       openai_api_key: ${oc.env:NVIDIA_API_KEY}
       openai_model: google/gemma-4-31b-it
-
-omniscience_omniscience_resources_server_nvidia_judge:
-  _inherit_from: omniscience_omniscience_resources_server
-  resources_servers:
-    omniscience:
-      use_chat_completions_for_judge: true
