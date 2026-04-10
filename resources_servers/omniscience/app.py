@@ -46,6 +46,8 @@ from nemo_gym.base_resources_server import (
 )
 from nemo_gym.config_types import ModelServerRef
 from nemo_gym.openai_utils import (
+    NeMoGymChatCompletion,
+    NeMoGymChatCompletionCreateParamsNonStreaming,
     NeMoGymEasyInputMessage,
     NeMoGymResponse,
     NeMoGymResponseCreateParamsNonStreaming,
@@ -226,6 +228,11 @@ class OmniscienceConfig(BaseResourcesServerConfig):
         default=_DEFAULT_JUDGE_PROMPT_TEMPLATE,
         description="Prompt sent to the LLM judge. Placeholders: {question}, {expected_answer}, {generation}.",
     )
+    use_chat_completions_for_judge: bool = Field(
+        default=False,
+        description="Use /v1/chat/completions instead of /v1/responses for the judge model. "
+        "Required for endpoints that don't support the OpenAI Responses API (e.g., NVIDIA API).",
+    )
 
 
 class OmniscienceRunRequest(BaseRunRequest):
@@ -281,19 +288,34 @@ class OmniscienceServer(SimpleResourcesServer):
             generation=generation,
         )
 
-        msgs: List[NeMoGymEasyInputMessage] = [
-            NeMoGymEasyInputMessage(role="user", content=judge_prompt),
-        ]
-        request_params = self.config.judge_responses_create_params.model_copy(deep=True)
-        request_params.input = msgs
+        if self.config.use_chat_completions_for_judge:
+            chat_params = NeMoGymChatCompletionCreateParamsNonStreaming(
+                messages=[{"role": "user", "content": judge_prompt}],
+                max_tokens=self.config.judge_responses_create_params.max_output_tokens or 64,
+                temperature=self.config.judge_responses_create_params.temperature or 0.0,
+                top_p=self.config.judge_responses_create_params.top_p or 1.0,
+            )
+            response_obj = await self.server_client.post(
+                server_name=self.config.judge_model_server.name,
+                url_path="/v1/chat/completions",
+                json=chat_params,
+            )
+            chat_response = NeMoGymChatCompletion.model_validate(await response_obj.json())
+            judge_text = chat_response.choices[0].message.content.strip() if chat_response.choices else ""
+        else:
+            msgs: List[NeMoGymEasyInputMessage] = [
+                NeMoGymEasyInputMessage(role="user", content=judge_prompt),
+            ]
+            request_params = self.config.judge_responses_create_params.model_copy(deep=True)
+            request_params.input = msgs
 
-        response_obj = await self.server_client.post(
-            server_name=self.config.judge_model_server.name,
-            url_path="/v1/responses",
-            json=request_params,
-        )
-        judge_response = NeMoGymResponse.model_validate(await response_obj.json())
-        judge_text = extract_text_from_response(judge_response)
+            response_obj = await self.server_client.post(
+                server_name=self.config.judge_model_server.name,
+                url_path="/v1/responses",
+                json=request_params,
+            )
+            judge_response = NeMoGymResponse.model_validate(await response_obj.json())
+            judge_text = extract_text_from_response(judge_response)
 
         grade = parse_judge_grade(judge_text)
 
