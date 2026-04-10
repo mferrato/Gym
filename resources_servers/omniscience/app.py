@@ -340,7 +340,7 @@ class OmniscienceServer(SimpleResourcesServer):
         is_hallucination = is_incorrect
 
         return OmniscienceVerifyResponse(
-            **body.model_dump(),
+            **body.model_dump(exclude={"expected_answer", "extracted_answer"}),
             reward=reward,
             extracted_answer=generation,
             expected_answer=expected_answer,
