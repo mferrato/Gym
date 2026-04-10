@@ -1,10 +1,10 @@
-# Judge model: google/gemma-4-31b-it via NVIDIA API
-# Overrides the default genrm_model (local vLLM) with an OpenAI-compatible
-# hosted endpoint. Requires NVIDIA_API_KEY in the environment.
+# Judge model: gcp/google/gemini-2.5-flash via NVIDIA Inference API
+# Uses Gemini 2.5 Flash as the judge — matches Skills' default omniscience judge.
+# Requires NVIDIA_INFERENCE_API_KEY in the environment.
 genrm_model:
   responses_api_models:
     openai_model:
       entrypoint: app.py
-      openai_base_url: https://integrate.api.nvidia.com/v1
-      openai_api_key: ${oc.env:NVIDIA_API_KEY}
-      openai_model: google/gemma-4-31b-it
+      openai_base_url: https://inference-api.nvidia.com/v1
+      openai_api_key: ${oc.env:NVIDIA_INFERENCE_API_KEY}
+      openai_model: gcp/google/gemini-2.5-flash
